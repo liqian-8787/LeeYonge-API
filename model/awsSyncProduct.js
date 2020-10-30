@@ -7,7 +7,7 @@ const s3bucket = new AWS.S3({
     accessKeyId: IAM_USER_KEY,
     secretAccessKey: IAM_USER_SECRET,
     Bucket: BUCKET_NAME,
-    Expires: 60 * 5
+    Expires: 500 * 5
 });
 
 const awsSyncProduct =
