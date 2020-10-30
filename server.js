@@ -18,9 +18,6 @@ require('./app')(app,{});
 
 const HTTP_PORT = process.env.PORT || 8080;
 
-
-
-
 mongoose.connect(process.env.MONGO_DB_CONNECTION_ST, {useNewUrlParser: true, useUnifiedTopology: true})
 .then(()=>{
     console.log(`Connected to MongoDB Database`);
