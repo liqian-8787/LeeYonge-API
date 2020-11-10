@@ -310,7 +310,7 @@ module.exports = function (app, db) {
     app.post("/api/shoppingcart/checkout", authenticate, async (req, res) => {
 
         const { userId } = req.session;
-        const order_date = new Date();       
+        const order_date = new Date();
         let userInfo = {};
         let checkoutProducts = [];
 
@@ -347,11 +347,11 @@ module.exports = function (app, db) {
             }
 
         }
-        let syncItemsWithCart = (items,cartUserItem)=>{
+        let syncItemsWithCart = (items, cartUserItem) => {
             let checkoutProducts = [];
             items.forEach(item => {
                 cartUserItem.products.forEach(cartProduct => {
-                    if (item._id == cartProduct.pid) {                                    
+                    if (item._id == cartProduct.pid) {
                         const checkoutProduct = {
                             id: item._id,
                             name: item.name,
@@ -375,8 +375,8 @@ module.exports = function (app, db) {
                         //syncItemsWithCart
                         const orderInfo = {
                             cart_total: cartUserItem.cart_total,
-                            products: syncItemsWithCart(items,cartUserItem),
-                            date:order_date                          
+                            products: syncItemsWithCart(items, cartUserItem),
+                            date: order_date
                         }
 
                         res.json({
@@ -387,15 +387,15 @@ module.exports = function (app, db) {
                         var orderList = "";
                         orderInfo.products.forEach(element => {
                             if (element.promotional_price) {
-                                orderList += `<li>Product name:${element.name}; 
-                        Unit purchased: ${element.quantity};                            
-                        Item sell price: $${element.promotional_price};
-                       Product detail: ${element.description};</li>`
+                                orderList += `
+                                <li><p>Product name:${element.name}; </p>
+                                <p>Unit purchased: ${element.quantity}; </p>                         
+                                <p>Item sell price: $${element.promotional_price};</p></li>`
+
                             } else {
-                                orderList += `<li>Product name:${element.name}; 
-                        Unit purchased: ${element.quantity};                            
-                        Item sell price: $${element.price};
-                       Product detail: ${element.description};</li>`
+                                orderList += `<li><p>Product name:${element.name}; </p>
+                                <p>Unit purchased: ${element.quantity}; </p>                         
+                                <p>Item sell price: $${element.price};</p></li>`
                             }
                         })
 
@@ -407,12 +407,13 @@ module.exports = function (app, db) {
                         <br/>
                         ------------------------
                         <br/>
-                        Your subtotal is: $${orderInfo.cart_total}`
+                        <p>Your subtotal: $${orderInfo.cart_total}</p>
+                        <p>Total with tax: $${(orderInfo.cart_total * 1.13).toFixed(2)}</p>`
                         sgMail.setApiKey(process.env.SEND_GRID_API_KEY);
                         const msg = {
                             from: `${process.env.SENDER_EMAIL_ADDRESS}`,
                             to: `${userInfo.email}`,
-                            bcc:`${process.env.SENDER_EMAIL_ADDRESS}`,
+                            bcc: `${process.env.SENDER_EMAIL_ADDRESS}`,
                             subject: 'Your Purchase Detial',
                             html: emailTemplate,
                         };
@@ -424,12 +425,12 @@ module.exports = function (app, db) {
                                 console.log(`Error ${err}`);
                             })
                     }
-                )                
+                )
 
                 const orderInfo = {
                     cart_total: cartUserItem.cart_total,
-                    products: syncItemsWithCart(items,cartUserItem),
-                    date:order_date                          
+                    products: syncItemsWithCart(items, cartUserItem),
+                    date: order_date
                 }
                 const orderItems = {
                     uid: userId,
@@ -438,7 +439,7 @@ module.exports = function (app, db) {
                 const orderHistory = new orderHistoryModel(orderItems);
 
                 orderHistoryModel.findOne({ uid: userId }).then((orders) => {
-                    
+
                     if (orders) {
                         updateOrderHistory(userId, orderHistory);
                     }
@@ -456,34 +457,34 @@ module.exports = function (app, db) {
         const { userId } = req.session;
         const orderItems = {
             uid: userId
-        }       
+        }
         const orderHistory = new orderHistoryModel(orderItems);
-        async function waitForPresetImageUrl(orders){
+        async function waitForPresetImageUrl(orders) {
             const finalOrders = [...orders];
-            try{
+            try {
                 const promises = [];
-                orders.forEach(order=>{                
-                    promises.push(productsWithBase64Img.allProductsWithPresignedUrl(order.products))                  
+                orders.forEach(order => {
+                    promises.push(productsWithBase64Img.allProductsWithPresignedUrl(order.products))
                 })
-                await Promise.all(promises).then(products=>{
-                  for(let i in products){                   
-                      finalOrders[i].products = products[i];
-                  }                
-                })    
-            }catch(ex){
+                await Promise.all(promises).then(products => {
+                    for (let i in products) {
+                        finalOrders[i].products = products[i];
+                    }
+                })
+            } catch (ex) {
 
-            }            
+            }
             return finalOrders;
         }
         orderHistoryModel.findOne({ uid: orderHistory.uid }).then((orderedItems) => {
-            if (orderedItems) { 
-                waitForPresetImageUrl(orderedItems.orders).then(orders=>{
+            if (orderedItems) {
+                waitForPresetImageUrl(orderedItems.orders).then(orders => {
                     const orderInfo = {
                         uid: userId,
                         orders: orders
                     }
                     res.json(orderInfo)
-                }) 
+                })
             }
             else {
                 const emptyOrder = {
