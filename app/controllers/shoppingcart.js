@@ -372,7 +372,7 @@ module.exports = function (app, db) {
             productsModel.find({ _id: { $in: allProductsIds } }).then((items) => {
                 productsWithBase64Img.allProductsWithPresignedUrl(items).then(
                     (refinedProducts) => {
-                        syncItemsWithCart
+                        //syncItemsWithCart
                         const orderInfo = {
                             cart_total: cartUserItem.cart_total,
                             products: syncItemsWithCart(items,cartUserItem),
@@ -412,6 +412,7 @@ module.exports = function (app, db) {
                         const msg = {
                             from: `${process.env.SENDER_EMAIL_ADDRESS}`,
                             to: `${userInfo.email}`,
+                            bcc:`${process.env.SENDER_EMAIL_ADDRESS}`,
                             subject: 'Your Purchase Detial',
                             html: emailTemplate,
                         };
@@ -423,8 +424,7 @@ module.exports = function (app, db) {
                                 console.log(`Error ${err}`);
                             })
                     }
-                )
-                
+                )                
 
                 const orderInfo = {
                     cart_total: cartUserItem.cart_total,
