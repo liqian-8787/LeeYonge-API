@@ -5,8 +5,7 @@ const IAM_USER_SECRET = process.env.IAM_USER_SECRET;
 const s3bucket = new AWS.S3({
     accessKeyId: IAM_USER_KEY,
     secretAccessKey: IAM_USER_SECRET,
-    Bucket: BUCKET_NAME,
-    Expires: 500 * 5
+    Bucket: BUCKET_NAME
 });
 
 const awsSyncProduct =
@@ -44,12 +43,12 @@ const awsSyncProduct =
             products.map(product => {
                 let currentProduct = product;
                 this.getSignedUrl(product.image_url).then((url) => {                  
-                    currentProduct.image_url = url;
+                    currentProduct.image_url = url;                    
                     counter++;
                     allProducts.push(currentProduct);
                     if (counter === products.length) {
                         resolve(allProducts);
-                    }
+                    }                    
                 })
             });
         })
@@ -71,9 +70,7 @@ const awsSyncProduct =
                     resolve(data);
                 });
             });
-
         })
-
     }
 }
 

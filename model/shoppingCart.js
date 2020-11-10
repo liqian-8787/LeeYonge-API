@@ -28,6 +28,6 @@ const shoppingCartSchema = new Schema({
 });
 
 
-const shoppingCartModel = mongoose.model('shoppingcarts', shoppingCartSchema);
+const shoppingCartModel = mongoose.model('shoppingcarts', shoppingCartSchema,);
 
 module.exports = shoppingCartModel;

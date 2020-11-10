@@ -4,7 +4,7 @@ const sgMail = require('@sendgrid/mail');
 const productsModel = require("../../model/product");
 const shoppingCartModel = require("./../../model/shoppingCart");
 const usersModel = require("../../model/user");
-const product = require("./product");
+const orderHistoryModel = require("../../model/orderHistory");
 const productsWithBase64Img = require("../../model/awsSyncProduct");
 
 module.exports = function (app, db) {
@@ -107,7 +107,6 @@ module.exports = function (app, db) {
 
         shoppingCartModel.findOne({ uid: cart.uid }).then((ct) => {
             if (ct) {
-
                 const existProduct = ct.products.filter(product => product.pid == cart.products[0].pid).length ? true : false;
                 let message;
                 if (existProduct) {
@@ -136,11 +135,8 @@ module.exports = function (app, db) {
                                         updateCartTotal(cart.uid, item.pid, 'New user added a product to the shopping cart');
                                     })
                             })
-
                         });
-
-                    })
-                    .catch(err => res.json(err));
+                    }).catch(err => res.json(err));
             }
         }).catch(err => res.json(err));
     })
@@ -148,9 +144,7 @@ module.exports = function (app, db) {
     app.get("/api/shoppingcart", authenticate, async (req, res) => {
 
         const { userId } = req.session;
-
         const cartProducts = req.body.products;
-
         const shoppingCartProduct = {
             uid: userId,
             products: cartProducts
@@ -158,14 +152,12 @@ module.exports = function (app, db) {
         const cart = new shoppingCartModel(shoppingCartProduct);
         shoppingCartModel.findOne({ uid: cart.uid }).then((ct) => {
             if (ct) {
-                console.log("----------")
-                console.log(ct)
-                if(ct.cart_total !== 0){
+                if (ct.cart_total !== 0) {
                     const allProductsIds = ct.products.map(p => p.pid);
                     productsModel.find({ _id: { $in: allProductsIds } }).then((items) => {
                         productsWithBase64Img.allProductsWithPresignedUrl(items).then(
                             (refinedProducts) => {
-    
+
                                 const products = refinedProducts.map(item => {
                                     return {
                                         id: item._id,
@@ -190,10 +182,9 @@ module.exports = function (app, db) {
                     })
                 }
                 else {
-                   const emptyCart={
-                       message:"cart is empty"
-                   }
-                    console.log(emptyCart);
+                    const emptyCart = {
+                        message: "cart is empty"
+                    }
                     res.json(emptyCart);
                 }
             }
@@ -201,7 +192,6 @@ module.exports = function (app, db) {
                 const unLogIn = {
                     message: "Please log in first!"
                 }
-                console.log("log in")
                 res.json(unLogIn);
             }
         }).catch((err) => {
@@ -320,8 +310,10 @@ module.exports = function (app, db) {
     app.post("/api/shoppingcart/checkout", authenticate, async (req, res) => {
 
         const { userId } = req.session;
+        const order_date = new Date();       
         let userInfo = {};
         let checkoutProducts = [];
+
         usersModel.findOne({ _id: userId }).then((user) => {
             userInfo = {
                 firstName: user.firstName,
@@ -329,33 +321,64 @@ module.exports = function (app, db) {
                 email: user.email
             }
         })
+        const findOrderByUserId = (uid) => new Promise((resolve, reject) => {
+            orderHistoryModel.findOne({ uid: uid }).then((orderInfo, err) => {
+                if (err) reject(err);
+                resolve(orderInfo)
+            });
+        })
+        const updateOrderHistory = (uid, orderItems) => {
+            try {
+                findOrderByUserId(uid).then(() => {
+                    orderHistoryModel.updateOne(
+                        { uid: uid },
+                        {
+                            $push:
+                            {
+                                "orders": orderItems.orders[0],
+                            }
+                        }
+                    ).then(() => {
+                        console.log(`updated successful`)
+                    })
+                })
+            } catch (err) {
+                res.json({ err });
+            }
 
+        }
+        let syncItemsWithCart = (items,cartUserItem)=>{
+            let checkoutProducts = [];
+            items.forEach(item => {
+                cartUserItem.products.forEach(cartProduct => {
+                    if (item._id == cartProduct.pid) {                                    
+                        const checkoutProduct = {
+                            id: item._id,
+                            name: item.name,
+                            price: item.price,
+                            promotional_price: item.promotional_price,
+                            quantity: cartProduct.quantity,
+                            description: item.description,
+                            image_url: item.image_url
+                        }
+                        checkoutProducts.push(checkoutProduct)
+                    }
+                })
+            })
+            return checkoutProducts;
+        }
         shoppingCartModel.findOneAndDelete({ uid: userId }).then((cartUserItem) => {
             allProductsIds = cartUserItem.products.map(p => p.pid);
             productsModel.find({ _id: { $in: allProductsIds } }).then((items) => {
                 productsWithBase64Img.allProductsWithPresignedUrl(items).then(
                     (refinedProducts) => {
-                        items.forEach(item => {
-                            cartUserItem.products.forEach(cartProduct => {
-                                if (item._id == cartProduct.pid) {
-                                    const checkoutProduct = {
-                                        id: item._id,
-                                        name: item.name,
-                                        price: item.price,
-                                        promotional_price: item.promotional_price,
-                                        quantity: cartProduct.quantity,
-                                        description: item.description,
-                                        image_url: item.image_url
-                                    }
-                                    checkoutProducts.push(checkoutProduct)
-
-                                }
-                            })
-                        })
+                        syncItemsWithCart
                         const orderInfo = {
                             cart_total: cartUserItem.cart_total,
-                            products: checkoutProducts
+                            products: syncItemsWithCart(items,cartUserItem),
+                            date:order_date                          
                         }
+
                         res.json({
                             userInfo: userInfo,
                             orders: orderInfo
@@ -377,14 +400,14 @@ module.exports = function (app, db) {
                         })
 
                         const emailTemplate = `<h2>Dear ${userInfo.firstName} ${userInfo.lastName}</h2>
-                <p>You have purchased the following items in our store!</p>
-                <ul>
-                    ${orderList}
-                </ul>
-                <br/>
-                ------------------------
-                <br/>
-                Your subtotal is: $${orderInfo.cart_total}`
+                        <p>You have purchased the following items in our store!</p>
+                        <ul>
+                            ${orderList}
+                        </ul>
+                        <br/>
+                        ------------------------
+                        <br/>
+                        Your subtotal is: $${orderInfo.cart_total}`
                         sgMail.setApiKey(process.env.SEND_GRID_API_KEY);
                         const msg = {
                             from: `${process.env.SENDER_EMAIL_ADDRESS}`,
@@ -399,8 +422,77 @@ module.exports = function (app, db) {
                             .catch(err => {
                                 console.log(`Error ${err}`);
                             })
-                    })
+                    }
+                )
+                
+
+                const orderInfo = {
+                    cart_total: cartUserItem.cart_total,
+                    products: syncItemsWithCart(items,cartUserItem),
+                    date:order_date                          
+                }
+                const orderItems = {
+                    uid: userId,
+                    orders: orderInfo
+                }
+                const orderHistory = new orderHistoryModel(orderItems);
+
+                orderHistoryModel.findOne({ uid: userId }).then((orders) => {
+                    
+                    if (orders) {
+                        updateOrderHistory(userId, orderHistory);
+                    }
+                    else {
+                        orderHistory.save().then((history) => {
+                            console.log(history)
+                        });
+                    }
+                })
             })
+        })
+    })
+
+    app.get("/api/orderhistory", authenticate, async (req, res) => {
+        const { userId } = req.session;
+        const orderItems = {
+            uid: userId
+        }       
+        const orderHistory = new orderHistoryModel(orderItems);
+        async function waitForPresetImageUrl(orders){
+            const finalOrders = [...orders];
+            try{
+                const promises = [];
+                orders.forEach(order=>{                
+                    promises.push(productsWithBase64Img.allProductsWithPresignedUrl(order.products))                  
+                })
+                await Promise.all(promises).then(products=>{
+                  for(let i in products){                   
+                      finalOrders[i].products = products[i];
+                  }                
+                })    
+            }catch(ex){
+
+            }            
+            return finalOrders;
+        }
+        orderHistoryModel.findOne({ uid: orderHistory.uid }).then((orderedItems) => {
+            if (orderedItems) { 
+                waitForPresetImageUrl(orderedItems.orders).then(orders=>{
+                    const orderInfo = {
+                        uid: userId,
+                        orders: orders
+                    }
+                    res.json(orderInfo)
+                }) 
+            }
+            else {
+                const emptyOrder = {
+                    message: "there is no order history"
+                }
+                res.json(emptyOrder);
+            }
+        }).catch((err) => {
+            res.json(err)
         })
     })
 }
