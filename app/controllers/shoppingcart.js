@@ -6,6 +6,7 @@ const shoppingCartModel = require("./../../model/shoppingCart");
 const usersModel = require("../../model/user");
 const orderHistoryModel = require("../../model/orderHistory");
 const productsWithBase64Img = require("../../model/awsSyncProduct");
+const sendEmail = require("../../template/emailTemp");
 
 module.exports = function (app, db) {
     app.use(cors());
@@ -312,7 +313,6 @@ module.exports = function (app, db) {
         const { userId } = req.session;
         const order_date = new Date();
         let userInfo = {};
-        let checkoutProducts = [];
 
         usersModel.findOne({ _id: userId }).then((user) => {
             userInfo = {
@@ -384,46 +384,7 @@ module.exports = function (app, db) {
                             orders: orderInfo
                         });
 
-                        var orderList = "";
-                        orderInfo.products.forEach(element => {
-                            if (element.promotional_price) {
-                                orderList += `
-                                <li><p>Product name:${element.name}; </p>
-                                <p>Unit purchased: ${element.quantity}; </p>                         
-                                <p>Item sell price: $${element.promotional_price};</p></li>`
-
-                            } else {
-                                orderList += `<li><p>Product name:${element.name}; </p>
-                                <p>Unit purchased: ${element.quantity}; </p>                         
-                                <p>Item sell price: $${element.price};</p></li>`
-                            }
-                        })
-
-                        const emailTemplate = `<h2>Dear ${userInfo.firstName} ${userInfo.lastName}</h2>
-                        <p>You have purchased the following items in our store!</p>
-                        <ul>
-                            ${orderList}
-                        </ul>
-                        <br/>
-                        ------------------------
-                        <br/>
-                        <p>Your subtotal: $${orderInfo.cart_total}</p>
-                        <p>Total with tax: $${(orderInfo.cart_total * 1.13).toFixed(2)}</p>`
-                        sgMail.setApiKey(process.env.SEND_GRID_API_KEY);
-                        const msg = {
-                            from: `${process.env.SENDER_EMAIL_ADDRESS}`,
-                            to: `${userInfo.email}`,
-                            bcc: `${process.env.SENDER_EMAIL_ADDRESS}`,
-                            subject: 'Your Purchase Detial',
-                            html: emailTemplate,
-                        };
-                        sgMail.send(msg)
-                            .then(() => {
-                                console.log(`Email sent!`)
-                            })
-                            .catch(err => {
-                                console.log(`Error ${err}`);
-                            })
+                        sendEmail.orderDetail(orderInfo, userInfo);
                     }
                 )
 
@@ -434,6 +395,7 @@ module.exports = function (app, db) {
                 }
                 const orderItems = {
                     uid: userId,
+                    customerInfo: userInfo,
                     orders: orderInfo
                 }
                 const orderHistory = new orderHistoryModel(orderItems);
@@ -455,6 +417,7 @@ module.exports = function (app, db) {
 
     app.get("/api/orderhistory", authenticate, async (req, res) => {
         const { userId } = req.session;
+
         const orderItems = {
             uid: userId
         }

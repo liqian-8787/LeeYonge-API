@@ -1,7 +1,4 @@
-const { Double, Long } = require('mongodb');
 const mongoose = require('mongoose');
-const { update } = require('./session');
-const shoppingCart=mongoose.model('shoppingcarts');
 const Schema = mongoose.Schema;
 
 const orderHistorySchema = new Schema({
@@ -10,6 +7,11 @@ const orderHistorySchema = new Schema({
     {
         type:String,
         required:true
+    },
+    customerInfo:{       
+            firstName:{type:String},
+            lastName: {type:String},
+            email: {type:String}       
     },
   
     orders:[{
@@ -28,6 +30,6 @@ const orderHistorySchema = new Schema({
 });
 
 
-const orderHistoryModel = mongoose.model('orderhistory', orderHistorySchema);
+const orderHistoryModel = mongoose.model('orderhistories', orderHistorySchema);
 
 module.exports = orderHistoryModel;
