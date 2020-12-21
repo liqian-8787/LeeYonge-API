@@ -45,6 +45,7 @@ const emailTemplate = {
         ------------------------
         <br/>
         <p>Your subtotal: $${orderInfo.cart_total}</p>
+        <p>Tax: $${(orderInfo.cart_total * 0.13).toFixed(2)}</p>
         <p>Total with tax: $${(orderInfo.cart_total * 1.13).toFixed(2)}</p>`
        
         sgMail.setApiKey(process.env.SEND_GRID_API_KEY);

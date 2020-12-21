@@ -382,7 +382,7 @@ module.exports = function (app, db) {
                         res.json({
                             userInfo: userInfo,
                             orders: orderInfo
-                        });
+                        }); 
 
                         sendEmail.orderDetail(orderInfo, userInfo);
                     }
